@@ -1,55 +1,89 @@
 package defillama
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"time"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
+	"golang.org/x/net/http/httpproxy"
 )
 
+type ProxyConfig struct {
+	Address string
+	Timeout time.Duration
+}
+
+type proxyClient struct {
+	client  *fasthttp.Client
+	label   string
+	timeout time.Duration
+}
+
 type Client struct {
-	clients []*fasthttp.Client
+	clients []proxyClient
 }
 
-func New(proxies []string) (*Client, error) {
-	clients := make([]*fasthttp.Client, 0, len(proxies)+1)
+func New(proxies []ProxyConfig) (*Client, error) {
+	clients := make([]proxyClient, 0, len(proxies))
 
-	if len(proxies) == 0 {
-		clients = append(clients, newClient(nil))
-	} else {
-		for _, proxy := range proxies {
-			dialer := fasthttpproxy.FasthttpHTTPDialer(proxy)
+	for _, p := range proxies {
+		label := p.Address
+		var dial fasthttp.DialFunc
 
-			if len(proxy) >= 7 && proxy[:7] == "socks5:" {
-				dialer = fasthttpproxy.FasthttpSocksDialer(proxy)
-			}
-
-			clients = append(clients, newClient(dialer))
+		switch {
+		case p.Address == "":
+			label = "direct"
+		case len(p.Address) >= 7 && p.Address[:7] == "socks5:":
+			dial = socksDialerWithTimeout(p.Address, p.Timeout)
+		default:
+			dial = fasthttpproxy.FasthttpHTTPDialerTimeout(p.Address, p.Timeout)
 		}
+
+		clients = append(clients, proxyClient{
+			client:  newClient(dial, p.Timeout),
+			label:   label,
+			timeout: p.Timeout,
+		})
 	}
 
-	return &Client{
-		clients: clients,
-	}, nil
+	if len(clients) == 0 {
+		return nil, errors.New("no proxy/client entries configured")
+	}
+
+	return &Client{clients: clients}, nil
 }
 
-func newClient(dial fasthttp.DialFunc) *fasthttp.Client {
+func newClient(dial fasthttp.DialFunc, timeout time.Duration) *fasthttp.Client {
 	return &fasthttp.Client{
-		MaxConnsPerHost:     512,
-		ReadTimeout:         10 * time.Second,
-		WriteTimeout:        10 * time.Second,
-		MaxIdleConnDuration: 90 * time.Second,
 		Dial:                dial,
+		ReadTimeout:         timeout,
+		WriteTimeout:        timeout,
+		MaxConnsPerHost:     512,
+		MaxIdleConnDuration: 90 * time.Second,
 	}
 }
 
-func (c *Client) randomClient() *fasthttp.Client {
+func socksDialerWithTimeout(proxyAddr string, timeout time.Duration) fasthttp.DialFunc {
+	d := fasthttpproxy.Dialer{
+		Config:         httpproxy.Config{HTTPProxy: proxyAddr, HTTPSProxy: proxyAddr},
+		Timeout:        timeout,
+		ConnectTimeout: timeout,
+	}
+	dialFunc, _ := d.GetDialFunc(false)
+	return dialFunc
+}
+
+func (c *Client) randomClient() proxyClient {
 	return c.clients[rand.IntN(len(c.clients))]
 }
 
 func (c *Client) get(url string) ([]byte, error) {
+	pc := c.randomClient()
+
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
@@ -58,22 +92,27 @@ func (c *Client) get(url string) ([]byte, error) {
 	req.SetRequestURI(url)
 	req.Header.SetMethod(fasthttp.MethodGet)
 
-	client := c.randomClient()
-
-	if err := client.DoTimeout(req, resp, 10*time.Second); err != nil {
-		return nil, err
+	if err := pc.client.DoTimeout(req, resp, pc.timeout); err != nil {
+		return nil, fmt.Errorf("via %s (timeout=%s): %w", pc.label, pc.timeout, err)
 	}
 
 	body := append([]byte(nil), resp.Body()...)
 	err := statusToError(body, resp.StatusCode())
-	return body, err
+	if err != nil {
+		return body, err
+	}
+
+	raw, err := Extract(bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return raw, nil
 }
 
 func statusToError(body []byte, statusCode int) error {
 	if statusCode != 200 {
 		return fmt.Errorf("request failed with status %d: %s", statusCode, string(body))
 	}
-
 	return nil
 }
 
