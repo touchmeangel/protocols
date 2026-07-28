@@ -1,0 +1,37 @@
+project_name: protocols
+
+builds:
+  - id: protocols
+    main: ./cmd
+    binary: protocols
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: protocols
+    ids: [protocols]
+    formats: [tar.gz]
+    name_template: "protocols_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: touchmeangel
+    name: protocols
