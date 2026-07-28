@@ -28,7 +28,7 @@ func main() {
 		defillama.ByMaxAudits(0),
 		defillama.ByChain("Ethereum"),
 		defillama.ByMinTVL(10_000),
-		defillama.ByMaxTVL(100_000),
+		defillama.ByMaxTVL(300_000),
 	)
 
 	defillama.SortProtocols(filtered, defillama.SortByTVL, true)
