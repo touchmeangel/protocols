@@ -33,9 +33,8 @@ func main() {
 	)
 
 	defillama.SortProtocols(filtered, defillama.SortByTVL, true)
-	top := defillama.Top(filtered, 20)
 
-	Print(top)
+	Print(filtered)
 }
 
 func Print(protocols []defillama.Protocol) {
