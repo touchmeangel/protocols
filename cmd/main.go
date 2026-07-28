@@ -19,12 +19,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	resp, err := client.GetAllProtocols()
+	protocols, err := client.GetAllProtocols()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	protocols := resp.Props.PageProps.Protocols
 
 	filtered := defillama.Apply(protocols,
 		defillama.ByChain("Ethereum"),
@@ -41,58 +39,43 @@ func Print(protocols []defillama.Protocol) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 	defer w.Flush()
 
-	fmt.Fprintln(w, "NAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL")
+	fmt.Fprintln(w, "ID\tNAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL")
 	for _, p := range protocols {
 		category := "-"
-		if p.Category != nil {
-			category = *p.Category
+		if p.Category != "" {
+			category = p.Category
 		}
-
-		tvl, _ := defillama.ProtocolTVL(p)
 
 		chains := strings.Join(p.Chains, ",")
 		if len(chains) > 30 {
 			chains = chains[:27] + "..."
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t$%s\t%s\t%s\t%s\n",
+		ratio, ok := defillama.MCapToTVL(p)
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%s\t%s\t%s\t%s\n",
+			p.Slug,
 			p.Name,
 			category,
 			chains,
-			formatMoney(tvl),
-			formatPct(changeOrNil(p, defillama.SortByChange1D)),
-			formatPct(changeOrNil(p, defillama.SortByChange7D)),
-			formatRatio(p.MCapTVL),
+			formatMoney(p.TVL),
+			formatPct(p.Change1d),
+			formatPct(p.Change7d),
+			formatRatio(ratio, ok),
 		)
 	}
 	fmt.Fprintf(w, "\nTotal: %d protocol(s)\n", len(protocols))
 }
 
-func changeOrNil(p defillama.Protocol, field defillama.SortField) *float64 {
-	if p.TVLChange == nil {
-		return nil
-	}
-	switch field {
-	case defillama.SortByChange1D:
-		return p.TVLChange.Change1D
-	case defillama.SortByChange7D:
-		return p.TVLChange.Change7D
-	}
-	return nil
+func formatPct(v float64) string {
+	return fmt.Sprintf("%+.2f%%", v)
 }
 
-func formatPct(v *float64) string {
-	if v == nil {
+func formatRatio(v float64, ok bool) string {
+	if !ok {
 		return "-"
 	}
-	return fmt.Sprintf("%+.2f%%", *v)
-}
-
-func formatRatio(v *float64) string {
-	if v == nil {
-		return "-"
-	}
-	return fmt.Sprintf("%.2f", *v)
+	return fmt.Sprintf("%.2f", v)
 }
 
 func formatMoney(v float64) string {

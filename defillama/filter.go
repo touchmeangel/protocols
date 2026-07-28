@@ -38,9 +38,7 @@ func Any(filters ...Filter) Filter {
 }
 
 func Not(f Filter) Filter {
-	return func(p Protocol) bool {
-		return !f(p)
-	}
+	return func(p Protocol) bool { return !f(p) }
 }
 
 func ByChain(chain string) Filter {
@@ -57,105 +55,39 @@ func ByChain(chain string) Filter {
 
 func ByCategory(category string) Filter {
 	category = strings.ToLower(category)
-	return func(p Protocol) bool {
-		if p.Category == nil {
-			return false
-		}
-		return strings.ToLower(*p.Category) == category
-	}
+	return func(p Protocol) bool { return strings.ToLower(p.Category) == category }
 }
 
 func ByNameContains(substr string) Filter {
 	substr = strings.ToLower(substr)
-	return func(p Protocol) bool {
-		return strings.Contains(strings.ToLower(p.Name), substr)
-	}
+	return func(p Protocol) bool { return strings.Contains(strings.ToLower(p.Name), substr) }
 }
 
-func ProtocolTVL(p Protocol) (float64, bool) {
-	if p.TVL == nil || p.TVL.Default == nil {
-		return 0, false
-	}
-	return p.TVL.Default.TVL, true
-}
-
-func ByMinTVL(min float64) Filter {
-	return func(p Protocol) bool {
-		tvl, ok := ProtocolTVL(p)
-		return ok && tvl >= min
-	}
-}
-
-func ByMaxTVL(max float64) Filter {
-	return func(p Protocol) bool {
-		tvl, ok := ProtocolTVL(p)
-		return ok && tvl <= max
-	}
-}
-
+func ByMinTVL(min float64) Filter { return func(p Protocol) bool { return p.TVL >= min } }
+func ByMaxTVL(max float64) Filter { return func(p Protocol) bool { return p.TVL <= max } }
 func ByTVLRange(min, max float64) Filter {
-	return func(p Protocol) bool {
-		tvl, ok := ProtocolTVL(p)
-		return ok && tvl >= min && tvl <= max
-	}
+	return func(p Protocol) bool { return p.TVL >= min && p.TVL <= max }
 }
 
-func ByMinChange1D(min float64) Filter {
-	return func(p Protocol) bool {
-		if p.TVLChange == nil || p.TVLChange.Change1D == nil {
-			return false
-		}
-		return *p.TVLChange.Change1D >= min
-	}
-}
-
-func ByMaxChange1D(max float64) Filter {
-	return func(p Protocol) bool {
-		if p.TVLChange == nil || p.TVLChange.Change1D == nil {
-			return false
-		}
-		return *p.TVLChange.Change1D <= max
-	}
-}
-
-func ByMinChange7D(min float64) Filter {
-	return func(p Protocol) bool {
-		if p.TVLChange == nil || p.TVLChange.Change7D == nil {
-			return false
-		}
-		return *p.TVLChange.Change7D >= min
-	}
-}
-
-func ByMaxChange7D(max float64) Filter {
-	return func(p Protocol) bool {
-		if p.TVLChange == nil || p.TVLChange.Change7D == nil {
-			return false
-		}
-		return *p.TVLChange.Change7D <= max
-	}
-}
-
-func ByMinFees24H(min float64) Filter {
-	return func(p Protocol) bool {
-		return p.Fees != nil && p.Fees.Total24H >= min
-	}
-}
-
-func ByMinRevenue24H(min float64) Filter {
-	return func(p Protocol) bool {
-		return p.Revenue != nil && p.Revenue.Total24H >= min
-	}
-}
+func ByMinChange1D(min float64) Filter { return func(p Protocol) bool { return p.Change1d >= min } }
+func ByMaxChange1D(max float64) Filter { return func(p Protocol) bool { return p.Change1d <= max } }
+func ByMinChange7D(min float64) Filter { return func(p Protocol) bool { return p.Change7d >= min } }
+func ByMaxChange7D(max float64) Filter { return func(p Protocol) bool { return p.Change7d <= max } }
 
 func ByMinMCap(min float64) Filter {
-	return func(p Protocol) bool {
-		return p.MCap != nil && *p.MCap >= min
+	return func(p Protocol) bool { return p.MCap != nil && *p.MCap >= min }
+}
+
+func MCapToTVL(p Protocol) (float64, bool) {
+	if p.MCap == nil || *p.MCap == 0 || p.TVL == 0 {
+		return 0, false
 	}
+	return *p.MCap / p.TVL, true
 }
 
 func ByMaxMCapTVLRatio(max float64) Filter {
 	return func(p Protocol) bool {
-		return p.MCapTVL != nil && *p.MCapTVL > 0 && *p.MCapTVL <= max
+		ratio, ok := MCapToTVL(p)
+		return ok && ratio <= max
 	}
 }

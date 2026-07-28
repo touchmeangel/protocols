@@ -1,98 +1,53 @@
 package defillama
 
-type RootResponse struct {
-	Props Props `json:"props"`
-}
-
-type Props struct {
-	PageProps PageProps `json:"pageProps"`
-}
-
-type PageProps struct {
-	Chain     string     `json:"chain"`
-	Metadata  Metadata   `json:"metadata"`
-	Protocols []Protocol `json:"protocols"`
-}
-
-type Metadata struct {
-	Name        string `json:"name"`
-	Stablecoins bool   `json:"stablecoins"`
-	Fees        bool   `json:"fees"`
-	Dexs        bool   `json:"dexs"`
-	Perps       bool   `json:"perps"`
-	ID          string `json:"id"`
-}
+import "encoding/json"
 
 type Protocol struct {
-	Name           string     `json:"name"`
-	Slug           string     `json:"slug"`
-	Logo           string     `json:"logo"`
-	Category       *string    `json:"category"`
-	Chains         []string   `json:"chains"`
-	ChildProtocols []Protocol `json:"childProtocols,omitempty"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Slug        string   `json:"slug"`
+	Address     string   `json:"address"`
+	Symbol      string   `json:"symbol"`
+	URL         string   `json:"url"`
+	Description string   `json:"description"`
+	Chain       string   `json:"chain"`
+	Logo        string   `json:"logo"`
+	Category    string   `json:"category"`
+	Chains      []string `json:"chains"`
+	Module      string   `json:"module"`
+	Twitter     string   `json:"twitter"`
+	ListedAt    int64    `json:"listedAt"`
+	Audits      string   `json:"audits"`
+	GeckoID     string   `json:"gecko_id"`
+	CmcID       string   `json:"cmcId"`
+	Methodology string   `json:"methodology,omitempty"`
+	TvlCodePath string   `json:"tvlCodePath,omitempty"`
 
-	TVL         *TVL       `json:"tvl"`
-	TVLChange   *TVLChange `json:"tvlChange"`
-	MCap        *float64   `json:"mcap"`
-	TokenPrice  *float64   `json:"tokenPrice"`
-	MCapTVL     *float64   `json:"mcaptvl"`
-	StrikeTVL   bool       `json:"strikeTvl"`
-	DefiLlamaID string     `json:"defillamaId"`
+	TVL       float64            `json:"tvl"`
+	ChainTvls map[string]float64 `json:"chainTvls"`
+	MCap      *float64           `json:"mcap"`
 
-	Fees           *Metric      `json:"fees"`
-	Revenue        *Metric      `json:"revenue"`
-	HoldersRevenue *Metric      `json:"holdersRevenue"`
-	Emissions      *Metric      `json:"emissions"`
-	Dexs           *DexMetrics  `json:"dexs"`
-	Perps          *PerpMetrics `json:"perps,omitempty"`
-}
+	Change1h float64 `json:"change_1h"`
+	Change1d float64 `json:"change_1d"`
+	Change7d float64 `json:"change_7d"`
 
-type TVL struct {
-	Default       *TVLValues `json:"default"`
-	DoubleCounted *TVLValues `json:"doublecounted,omitempty"`
-	Borrowed      *TVLValues `json:"borrowed,omitempty"`
-	Staking       *TVLValues `json:"staking,omitempty"`
-	Pool2         *TVLValues `json:"pool2,omitempty"`
-}
+	AuditLinks           []string `json:"audit_links,omitempty"`
+	OpenSource           bool     `json:"openSource,omitempty"`
+	GitHub               []string `json:"github,omitempty"`
+	Tags                 []string `json:"tags,omitempty"`
+	PreviousNames        []string `json:"previousNames,omitempty"`
+	ParentProtocol       string   `json:"parentProtocol,omitempty"`
+	ParentProtocolSlug   string   `json:"parentProtocolSlug,omitempty"`
+	Deprecated           bool     `json:"deprecated,omitempty"`
+	ReferralUrl          string   `json:"referralUrl,omitempty"`
+	AssetToken           string   `json:"assetToken,omitempty"`
+	Staking              *float64 `json:"staking,omitempty"`
+	Borrowed             *float64 `json:"borrowed,omitempty"`
+	Pool2                *float64 `json:"pool2,omitempty"`
+	MisrepresentedTokens bool     `json:"misrepresentedTokens,omitempty"`
 
-type TVLValues struct {
-	TVL          float64  `json:"tvl"`
-	TVLPrevDay   *float64 `json:"tvlPrevDay"`
-	TVLPrevWeek  *float64 `json:"tvlPrevWeek"`
-	TVLPrevMonth *float64 `json:"tvlPrevMonth"`
-}
-
-type TVLChange struct {
-	Change1D *float64 `json:"change1d"`
-	Change7D *float64 `json:"change7d"`
-	Change1M *float64 `json:"change1m"`
-}
-
-type Metric struct {
-	Total24H         float64  `json:"total24h"`
-	Total7D          float64  `json:"total7d"`
-	Total30D         float64  `json:"total30d"`
-	Total1Y          float64  `json:"total1y"`
-	Annualized1Y     *float64 `json:"annualized1y"`
-	MonthlyAverage1Y *float64 `json:"monthlyAverage1y"`
-	TotalAllTime     float64  `json:"totalAllTime"`
-
-	// Fees uses "pf", revenue uses "ps".
-	PF *float64 `json:"pf,omitempty"`
-	PS *float64 `json:"ps,omitempty"`
-}
-
-type DexMetrics struct {
-	Total24H       float64 `json:"total24h"`
-	Total7D        float64 `json:"total7d"`
-	TotalAllTime   float64 `json:"totalAllTime"`
-	Change7DOver7D float64 `json:"change_7dover7d"`
-}
-
-type PerpMetrics struct {
-	Total24H       float64 `json:"total24h"`
-	Total7D        float64 `json:"total7d"`
-	Total30D       float64 `json:"total30d"`
-	TotalAllTime   float64 `json:"totalAllTime"`
-	Change7DOver7D float64 `json:"change_7dover7d"`
+	Dimensions       json.RawMessage `json:"dimensions,omitempty"`
+	Hallmarks        json.RawMessage `json:"hallmarks,omitempty"`
+	OraclesBreakdown json.RawMessage `json:"oraclesBreakdown,omitempty"`
+	TokenBreakdowns  json.RawMessage `json:"tokenBreakdowns,omitempty"`
 }

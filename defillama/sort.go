@@ -9,8 +9,6 @@ const (
 	SortByChange1D
 	SortByChange7D
 	SortByMCap
-	SortByFees24H
-	SortByRevenue24H
 	SortByName
 )
 
@@ -22,9 +20,7 @@ func SortProtocols(protocols []Protocol, field SortField, desc bool) {
 			}
 			return protocols[i].Name < protocols[j].Name
 		}
-
-		a := sortValue(protocols[i], field)
-		b := sortValue(protocols[j], field)
+		a, b := sortValue(protocols[i], field), sortValue(protocols[j], field)
 		if desc {
 			return a > b
 		}
@@ -35,27 +31,14 @@ func SortProtocols(protocols []Protocol, field SortField, desc bool) {
 func sortValue(p Protocol, field SortField) float64 {
 	switch field {
 	case SortByTVL:
-		v, _ := ProtocolTVL(p)
-		return v
+		return p.TVL
 	case SortByChange1D:
-		if p.TVLChange != nil && p.TVLChange.Change1D != nil {
-			return *p.TVLChange.Change1D
-		}
+		return p.Change1d
 	case SortByChange7D:
-		if p.TVLChange != nil && p.TVLChange.Change7D != nil {
-			return *p.TVLChange.Change7D
-		}
+		return p.Change7d
 	case SortByMCap:
 		if p.MCap != nil {
 			return *p.MCap
-		}
-	case SortByFees24H:
-		if p.Fees != nil {
-			return p.Fees.Total24H
-		}
-	case SortByRevenue24H:
-		if p.Revenue != nil {
-			return p.Revenue.Total24H
 		}
 	}
 	return 0

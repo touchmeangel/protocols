@@ -1,7 +1,6 @@
 package defillama
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +12,7 @@ import (
 	"golang.org/x/net/http/httpproxy"
 )
 
-const BaseURL = "https://defillama.com"
+const BaseURL = "https://api.llama.fi"
 
 type ProxyConfig struct {
 	Address string
@@ -104,18 +103,15 @@ func (c *Client) rawGet(endpoint string) ([]byte, error) {
 	if err := statusToError(body, resp.StatusCode()); err != nil {
 		return nil, err
 	}
-
-	return Extract(bytes.NewReader(body))
+	return body, nil
 }
 
 func get[T any](c *Client, endpoint string) (T, error) {
 	var out T
-
 	raw, err := c.rawGet(endpoint)
 	if err != nil {
 		return out, err
 	}
-
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return out, fmt.Errorf("unmarshal %s: %w", endpoint, err)
 	}
@@ -129,6 +125,6 @@ func statusToError(body []byte, statusCode int) error {
 	return nil
 }
 
-func (c *Client) GetAllProtocols() (RootResponse, error) {
-	return get[RootResponse](c, "/")
+func (c *Client) GetAllProtocols() ([]Protocol, error) {
+	return get[[]Protocol](c, "/protocols")
 }
