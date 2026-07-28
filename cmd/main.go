@@ -9,6 +9,7 @@ import (
 
 	"github.com/touchmeangel/protocols/config"
 	"github.com/touchmeangel/protocols/defillama"
+	twitter_api "github.com/touchmeangel/twitter_api"
 )
 
 func main() {
@@ -32,6 +33,14 @@ func main() {
 	)
 
 	defillama.SortProtocols(filtered, defillama.SortByTVL, true)
+
+	scraper := twitter_api.New()
+
+	profile, err := scraper.GetProfile(filtered[0].Twitter)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("first profile followers count: %d\n", profile.FollowersCount)
 
 	Print(filtered)
 }
