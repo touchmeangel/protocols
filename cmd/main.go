@@ -25,6 +25,7 @@ func main() {
 	}
 
 	filtered := defillama.Apply(protocols,
+		defillama.ByMaxAudits(0),
 		defillama.ByChain("Ethereum"),
 		defillama.ByMinTVL(10_000),
 		defillama.ByMaxTVL(100_000),

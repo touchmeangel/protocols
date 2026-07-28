@@ -1,6 +1,9 @@
 package defillama
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 type Filter func(Protocol) bool
 
@@ -73,6 +76,31 @@ func ByMinChange1D(min float64) Filter { return func(p Protocol) bool { return p
 func ByMaxChange1D(max float64) Filter { return func(p Protocol) bool { return p.Change1d <= max } }
 func ByMinChange7D(min float64) Filter { return func(p Protocol) bool { return p.Change7d >= min } }
 func ByMaxChange7D(max float64) Filter { return func(p Protocol) bool { return p.Change7d <= max } }
+
+func AuditCount(p Protocol) (int, bool) {
+	if p.Audits == "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(p.Audits)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+func ByMinAudits(min int) Filter {
+	return func(p Protocol) bool {
+		n, ok := AuditCount(p)
+		return ok && n >= min
+	}
+}
+
+func ByMaxAudits(max int) Filter {
+	return func(p Protocol) bool {
+		n, ok := AuditCount(p)
+		return ok && n <= max
+	}
+}
 
 func ByMinMCap(min float64) Filter {
 	return func(p Protocol) bool { return p.MCap != nil && *p.MCap >= min }
