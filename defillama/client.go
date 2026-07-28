@@ -49,6 +49,12 @@ func statusToError(body []byte, statusCode int) error {
 	return nil
 }
 
-func (c *Client) GetAllProtocols() {
+func (c *Client) GetAllProtocols() error {
+	body, err := c.get("https://defillama.com/")
+	if err != nil {
+		return err
+	}
 
+	fmt.Printf("resp: %s", body)
+	return nil
 }
