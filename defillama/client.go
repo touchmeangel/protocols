@@ -2,6 +2,7 @@ package defillama
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -11,6 +12,8 @@ import (
 	"github.com/valyala/fasthttp/fasthttpproxy"
 	"golang.org/x/net/http/httpproxy"
 )
+
+const BaseURL = "https://defillama.com"
 
 type ProxyConfig struct {
 	Address string
@@ -24,6 +27,7 @@ type proxyClient struct {
 }
 
 type Client struct {
+	baseURL string
 	clients []proxyClient
 }
 
@@ -54,7 +58,7 @@ func New(proxies []ProxyConfig) (*Client, error) {
 		return nil, errors.New("no proxy/client entries configured")
 	}
 
-	return &Client{clients: clients}, nil
+	return &Client{baseURL: BaseURL, clients: clients}, nil
 }
 
 func newClient(dial fasthttp.DialFunc, timeout time.Duration) *fasthttp.Client {
@@ -81,7 +85,7 @@ func (c *Client) randomClient() proxyClient {
 	return c.clients[rand.IntN(len(c.clients))]
 }
 
-func (c *Client) get(url string) ([]byte, error) {
+func (c *Client) rawGet(endpoint string) ([]byte, error) {
 	pc := c.randomClient()
 
 	req := fasthttp.AcquireRequest()
@@ -89,7 +93,7 @@ func (c *Client) get(url string) ([]byte, error) {
 	defer fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
 
-	req.SetRequestURI(url)
+	req.SetRequestURI(c.baseURL + endpoint)
 	req.Header.SetMethod(fasthttp.MethodGet)
 
 	if err := pc.client.DoTimeout(req, resp, pc.timeout); err != nil {
@@ -97,16 +101,25 @@ func (c *Client) get(url string) ([]byte, error) {
 	}
 
 	body := append([]byte(nil), resp.Body()...)
-	err := statusToError(body, resp.StatusCode())
-	if err != nil {
-		return body, err
-	}
-
-	raw, err := Extract(bytes.NewReader(body))
-	if err != nil {
+	if err := statusToError(body, resp.StatusCode()); err != nil {
 		return nil, err
 	}
-	return raw, nil
+
+	return Extract(bytes.NewReader(body))
+}
+
+func get[T any](c *Client, endpoint string) (T, error) {
+	var out T
+
+	raw, err := c.rawGet(endpoint)
+	if err != nil {
+		return out, err
+	}
+
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return out, fmt.Errorf("unmarshal %s: %w", endpoint, err)
+	}
+	return out, nil
 }
 
 func statusToError(body []byte, statusCode int) error {
@@ -116,12 +129,6 @@ func statusToError(body []byte, statusCode int) error {
 	return nil
 }
 
-func (c *Client) GetAllProtocols() error {
-	body, err := c.get("https://defillama.com/")
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("resp: %s", body)
-	return nil
+func (c *Client) GetAllProtocols() (RootResponse, error) {
+	return get[RootResponse](c, "/")
 }
