@@ -23,6 +23,7 @@ func New() (*Client, error) {
 	return &Client{client: client}, nil
 }
 
+// https://defillama.com/protocol/surf-lending
 func (c *Client) get(url string) ([]byte, error) {
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
