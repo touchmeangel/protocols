@@ -10,6 +10,7 @@ import (
 
 	"github.com/touchmeangel/protocols/config"
 	"github.com/touchmeangel/protocols/defillama"
+	"github.com/touchmeangel/protocols/twitter"
 	twitter_api "github.com/touchmeangel/twitter_api"
 )
 
@@ -41,7 +42,14 @@ func main() {
 		defillama.ByMaxTVL(300_000),
 	)
 
-	twitter := twitter_api.New()
+	twitterClient := twitter_api.New()
+
+	followerFilters := []twitter.FollowerFilter{
+		twitter.MinFollowers(100),
+		twitter.MaxFollowers(10000),
+	}
+
+	var results []defillama.Protocol
 
 	for _, p := range filtered {
 		if p.Twitter == "" {
@@ -49,9 +57,9 @@ func main() {
 		}
 
 		acc := cfg.Accounts[rand.IntN(len(cfg.Accounts))]
-		twitter.SetAuthToken(acc.Token)
+		twitterClient.SetAuthToken(acc.Token)
 
-		profile, err := twitter.GetProfile(p.Twitter)
+		profile, err := twitterClient.GetProfile(p.Twitter)
 		if err != nil {
 			if strings.Contains(err.Error(), "rest_id not found") {
 				log.Printf("twitter handle %q: account not found / suspended", p.Twitter)
@@ -61,10 +69,15 @@ func main() {
 			continue
 		}
 
+		if !twitter.MatchesAllFollowers(profile.FollowersCount, followerFilters) {
+			continue
+		}
+
 		fmt.Printf("%s: %d followers\n", p.Twitter, profile.FollowersCount)
+		results = append(results, p)
 	}
 
-	Print(filtered)
+	Print(results)
 }
 
 func Print(protocols []defillama.Protocol) {
