@@ -13,7 +13,15 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "config.json"
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	client, err := defillama.New(cfg.Proxies)
 	if err != nil {
@@ -34,9 +42,13 @@ func main() {
 
 	defillama.SortProtocols(filtered, defillama.SortByTVL, true)
 
-	scraper := twitter_api.New()
+	twitter := twitter_api.New()
+	twitter.SetAuthToken(twitter_api.AuthToken{
+		CSRFToken: "",
+		Token:     "",
+	})
 
-	profile, err := scraper.GetProfile(filtered[0].Twitter)
+	profile, err := twitter.GetProfile(filtered[0].Twitter)
 	if err != nil {
 		log.Fatal(err)
 	}

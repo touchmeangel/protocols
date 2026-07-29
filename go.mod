@@ -1,9 +1,9 @@
 module github.com/touchmeangel/protocols
 
-go 1.26.5
+go 1.25.0
 
 require (
-	github.com/touchmeangel/twitter_api v0.0.2
+	github.com/touchmeangel/twitter_api v0.0.10
 	github.com/valyala/fasthttp v1.73.0
 	golang.org/x/net v0.57.0
 )
