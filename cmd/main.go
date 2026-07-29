@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -40,19 +41,28 @@ func main() {
 		defillama.ByMaxTVL(300_000),
 	)
 
-	defillama.SortProtocols(filtered, defillama.SortByTVL, true)
-
 	twitter := twitter_api.New()
-	twitter.SetAuthToken(twitter_api.AuthToken{
-		CSRFToken: "",
-		Token:     "",
-	})
 
-	profile, err := twitter.GetProfile(filtered[0].Twitter)
-	if err != nil {
-		log.Fatal(err)
+	for _, p := range filtered {
+		if p.Twitter == "" {
+			continue
+		}
+
+		acc := cfg.Accounts[rand.IntN(len(cfg.Accounts))]
+		twitter.SetAuthToken(acc.Token)
+
+		profile, err := twitter.GetProfile(p.Twitter)
+		if err != nil {
+			if strings.Contains(err.Error(), "rest_id not found") {
+				log.Printf("twitter handle %q: account not found / suspended", p.Twitter)
+				continue
+			}
+			log.Printf("twitter handle %q: fetch failed using account %q: %v", p.Twitter, acc.Label, err)
+			continue
+		}
+
+		fmt.Printf("%s: %d followers\n", p.Twitter, profile.FollowersCount)
 	}
-	fmt.Printf("first profile followers count: %d\n", profile.FollowersCount)
 
 	Print(filtered)
 }
