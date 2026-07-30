@@ -36,7 +36,10 @@ func main() {
 
 	proxy := cfg.Proxies[rand.IntN(len(cfg.Proxies))]
 	client.WithClientTimeout(proxy.Timeout)
-	client.SetProxy(proxy.Address)
+	err = client.SetProxy(proxy.Address)
+	if err != nil {
+		log.Fatal(err)
+	}
 	protocols, err := client.GetAllProtocols()
 	if err != nil {
 		log.Fatal(err)
