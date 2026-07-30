@@ -129,9 +129,9 @@ func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyCo
 
 func Print(protocols []defillama.Protocol) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	defer w.Flush()
+	defer func() { _ = w.Flush() }()
 
-	fmt.Fprintln(w, "ID\tNAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL")
+	_, _ = fmt.Fprintln(w, "ID\tNAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL")
 	for _, p := range protocols {
 		category := "-"
 		if p.Category != "" {
@@ -145,7 +145,7 @@ func Print(protocols []defillama.Protocol) {
 
 		ratio, ok := defillama.MCapToTVL(p)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%s\t%s\t%s\t%s\n",
 			p.Slug,
 			p.Name,
 			category,
@@ -156,7 +156,7 @@ func Print(protocols []defillama.Protocol) {
 			formatRatio(ratio, ok),
 		)
 	}
-	fmt.Fprintf(w, "\nTotal: %d protocol(s)\n", len(protocols))
+	_, _ = fmt.Fprintf(w, "\nTotal: %d protocol(s)\n", len(protocols))
 }
 
 func formatPct(v float64) string {
