@@ -48,7 +48,7 @@ func main() {
 		twitter.MaxFollowers(10000),
 	}
 
-	results := fetchByFollowers(filtered, cfg.Accounts, followerFilters)
+	results := fetchByFollowers(filtered, cfg.Accounts, cfg.Proxies, followerFilters)
 
 	Print(results)
 }
@@ -60,7 +60,7 @@ type followerOutcome struct {
 	matched  bool
 }
 
-func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
+func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, proxies []defillama.ProxyConfig, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
 	type job struct {
 		index    int
 		protocol defillama.Protocol
@@ -81,6 +81,13 @@ func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, 
 				p := j.protocol
 				acc := accounts[rand.IntN(len(accounts))]
 				client.SetAuthToken(acc.Token)
+				proxy := proxies[rand.IntN(len(proxies))]
+				err := client.SetProxy(proxy.Address)
+				if err != nil {
+					log.Printf("%s proxy fails with: %v", proxy.Address, err)
+					continue
+				}
+				client.WithClientTimeout(proxy.Timeout)
 
 				profile, err := client.GetProfile(p.Twitter)
 				if err != nil {
