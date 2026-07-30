@@ -44,5 +44,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            touchmeangel/protocols:${{ steps.ver.outputs.version }}
-            touchmeangel/protocols:latest
+            touchmeangel/protogod:${{ steps.ver.outputs.version }}
+            touchmeangel/protogod:latest
