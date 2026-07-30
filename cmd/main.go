@@ -62,8 +62,13 @@ func main() {
 const concurrentFetches = 5
 
 type followerOutcome struct {
-	protocol defillama.Protocol
-	matched  bool
+	result  ProtocolWithFollowers
+	matched bool
+}
+
+type ProtocolWithFollowers struct {
+	defillama.Protocol
+	Followers int
 }
 
 const profileAttempts = 5
@@ -115,7 +120,7 @@ func fetchProfileWithRetry(client *twitter_api.Client, proxies []defillama.Proxy
 	}
 }
 
-func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyConfig, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
+func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyConfig, followerFilters []twitter.FollowerFilter) []ProtocolWithFollowers {
 	type job struct {
 		index    int
 		protocol defillama.Protocol
@@ -155,7 +160,10 @@ func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyCo
 
 				if twitter.MatchesAllFollowers(profile.FollowersCount, followerFilters) {
 					fmt.Printf("%s: %d followers\n", p.Twitter, profile.FollowersCount)
-					outcomes[j.index] = followerOutcome{protocol: p, matched: true}
+					outcomes[j.index] = followerOutcome{
+						result:  ProtocolWithFollowers{Protocol: p, Followers: profile.FollowersCount},
+						matched: true,
+					}
 				}
 			}
 		}()
@@ -173,20 +181,20 @@ func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyCo
 
 	wg.Wait()
 
-	results := make([]defillama.Protocol, 0, len(filtered))
+	results := make([]ProtocolWithFollowers, 0, len(filtered))
 	for _, o := range outcomes {
 		if o.matched {
-			results = append(results, o.protocol)
+			results = append(results, o.result)
 		}
 	}
 	return results
 }
 
-func Print(protocols []defillama.Protocol) {
+func Print(protocols []ProtocolWithFollowers) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()
 
-	_, _ = fmt.Fprintln(w, "ID\tNAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL")
+	_, _ = fmt.Fprintln(w, "ID\tNAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL\tFOLLOWERS")
 	for _, p := range protocols {
 		category := "-"
 		if p.Category != "" {
@@ -198,9 +206,9 @@ func Print(protocols []defillama.Protocol) {
 			chains = chains[:27] + "..."
 		}
 
-		ratio, ok := defillama.MCapToTVL(p)
+		ratio, ok := defillama.MCapToTVL(p.Protocol)
 
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%s\t%s\t%s\t%s\t%s\n",
 			p.Slug,
 			p.Name,
 			category,
@@ -209,6 +217,7 @@ func Print(protocols []defillama.Protocol) {
 			formatPct(p.Change1d),
 			formatPct(p.Change7d),
 			formatRatio(ratio, ok),
+			formatMoney(float64(p.Followers)),
 		)
 	}
 	_, _ = fmt.Fprintf(w, "\nTotal: %d protocol(s)\n", len(protocols))
