@@ -29,11 +29,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client, err := defillama.New(cfg.Proxies)
+	client, err := defillama.New()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	proxy := cfg.Proxies[rand.IntN(len(cfg.Proxies))]
+	client.WithClientTimeout(proxy.Timeout)
+	client.SetProxy(proxy.Address)
 	protocols, err := client.GetAllProtocols()
 	if err != nil {
 		log.Fatal(err)
@@ -74,11 +77,11 @@ func fetchProfileWithRetry(client *twitter_api.Client, proxies []defillama.Proxy
 			time.Sleep(backoff)
 
 			proxy := proxies[rand.IntN(len(proxies))]
+			client.WithClientTimeout(proxy.Timeout)
 			if err := client.SetProxy(proxy.Address); err != nil {
 				lastErr = err
 				continue
 			}
-			client.WithClientTimeout(proxy.Timeout)
 			client.ResetGuestSession()
 		}
 

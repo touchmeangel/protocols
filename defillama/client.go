@@ -4,89 +4,86 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand/v2"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
-	"golang.org/x/net/http/httpproxy"
 )
 
 const BaseURL = "https://api.llama.fi"
+const DefaultClientTimeout = 10 * time.Second
 
 type ProxyConfig struct {
 	Address string
 	Timeout time.Duration
 }
 
-type proxyClient struct {
-	client  *fasthttp.Client
-	label   string
-	timeout time.Duration
-}
-
 type Client struct {
-	baseURL string
-	clients []proxyClient
+	baseURL       string
+	client        *fasthttp.Client
+	clientTimeout time.Duration
+	proxy         string
 }
 
-func New(proxies []ProxyConfig) (*Client, error) {
-	clients := make([]proxyClient, 0, len(proxies))
-
-	for _, p := range proxies {
-		label := p.Address
-		var dial fasthttp.DialFunc
-
-		switch {
-		case p.Address == "":
-			label = "direct"
-		case len(p.Address) >= 7 && p.Address[:7] == "socks5:":
-			dial = socksDialerWithTimeout(p.Address, p.Timeout)
-		default:
-			dial = fasthttpproxy.FasthttpHTTPDialerTimeout(p.Address, p.Timeout)
-		}
-
-		clients = append(clients, proxyClient{
-			client:  newClient(dial, p.Timeout),
-			label:   label,
-			timeout: p.Timeout,
-		})
-	}
-
-	if len(clients) == 0 {
-		return nil, errors.New("no proxy/client entries configured")
-	}
-
-	return &Client{baseURL: BaseURL, clients: clients}, nil
-}
-
-func newClient(dial fasthttp.DialFunc, timeout time.Duration) *fasthttp.Client {
-	return &fasthttp.Client{
-		Dial:                dial,
-		ReadTimeout:         timeout,
-		WriteTimeout:        timeout,
+func New() (*Client, error) {
+	return &Client{baseURL: BaseURL, client: &fasthttp.Client{
+		ReadTimeout:         DefaultClientTimeout,
+		WriteTimeout:        DefaultClientTimeout,
 		MaxConnsPerHost:     512,
 		MaxIdleConnDuration: 90 * time.Second,
-	}
+	}, clientTimeout: DefaultClientTimeout}, nil
 }
 
-func socksDialerWithTimeout(proxyAddr string, timeout time.Duration) fasthttp.DialFunc {
-	d := fasthttpproxy.Dialer{
-		Config:         httpproxy.Config{HTTPProxy: proxyAddr, HTTPSProxy: proxyAddr},
-		Timeout:        timeout,
-		ConnectTimeout: timeout,
+// WithClientTimeout sets the per-request timeout (enforced via fasthttp's DoTimeout)
+func (s *Client) WithClientTimeout(timeout time.Duration) *Client {
+	s.clientTimeout = timeout
+	s.client.ReadTimeout = timeout
+	s.client.WriteTimeout = timeout
+	if strings.HasPrefix(s.proxy, "http") {
+		s.updateHTTPDialer(s.proxy, s.clientTimeout)
 	}
-	dialFunc, _ := d.GetDialFunc(false)
-	return dialFunc
+	return s
 }
 
-func (c *Client) randomClient() proxyClient {
-	return c.clients[rand.IntN(len(c.clients))]
+// SetProxy
+func (s *Client) SetProxy(proxyAddr string) error {
+	if proxyAddr == "" {
+		s.client.Dial = nil
+		s.proxy = ""
+		return nil
+	}
+
+	if strings.HasPrefix(proxyAddr, "http") {
+		if _, err := url.Parse(proxyAddr); err != nil {
+			return err
+		}
+		s.updateHTTPDialer(proxyAddr, s.clientTimeout)
+		return nil
+	}
+
+	if strings.HasPrefix(proxyAddr, "socks") {
+		if _, err := url.Parse(proxyAddr); err != nil {
+			return fmt.Errorf("error creating socks proxy: %w", err)
+		}
+		s.client.Dial = fasthttpproxy.FasthttpSocksDialer(proxyAddr)
+		s.proxy = proxyAddr
+		return nil
+	}
+
+	return errors.New("only support http(s)/socks4/socks5 protocol")
+}
+
+func (s *Client) updateHTTPDialer(proxyAddr string, timeout time.Duration) {
+	if timeout <= 0 {
+		timeout = DefaultClientTimeout
+	}
+	s.client.Dial = fasthttpproxy.FasthttpHTTPDialerTimeout(proxyAddr, timeout)
+	s.proxy = proxyAddr
 }
 
 func (c *Client) rawGet(endpoint string) ([]byte, error) {
-	pc := c.randomClient()
-
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
@@ -95,8 +92,8 @@ func (c *Client) rawGet(endpoint string) ([]byte, error) {
 	req.SetRequestURI(c.baseURL + endpoint)
 	req.Header.SetMethod(fasthttp.MethodGet)
 
-	if err := pc.client.DoTimeout(req, resp, pc.timeout); err != nil {
-		return nil, fmt.Errorf("via %s (timeout=%s): %w", pc.label, pc.timeout, err)
+	if err := c.client.DoTimeout(req, resp, c.clientTimeout); err != nil {
+		return nil, fmt.Errorf("(timeout=%s): %w", c.clientTimeout, err)
 	}
 
 	body := append([]byte(nil), resp.Body()...)
