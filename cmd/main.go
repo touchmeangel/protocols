@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/touchmeangel/protocols/config"
@@ -42,42 +43,83 @@ func main() {
 		defillama.ByMaxTVL(300_000),
 	)
 
-	twitterClient := twitter_api.New()
-
 	followerFilters := []twitter.FollowerFilter{
 		twitter.MinFollowers(100),
 		twitter.MaxFollowers(10000),
 	}
 
-	var results []defillama.Protocol
-
-	for _, p := range filtered {
-		if p.Twitter == "" {
-			continue
-		}
-
-		acc := cfg.Accounts[rand.IntN(len(cfg.Accounts))]
-		twitterClient.SetAuthToken(acc.Token)
-
-		profile, err := twitterClient.GetProfile(p.Twitter)
-		if err != nil {
-			if strings.Contains(err.Error(), "rest_id not found") {
-				log.Printf("twitter handle %q: account not found / suspended", p.Twitter)
-				continue
-			}
-			log.Printf("twitter handle %q: fetch failed using account %q: %v", p.Twitter, acc.Label, err)
-			continue
-		}
-
-		if !twitter.MatchesAllFollowers(profile.FollowersCount, followerFilters) {
-			continue
-		}
-
-		fmt.Printf("%s: %d followers\n", p.Twitter, profile.FollowersCount)
-		results = append(results, p)
-	}
+	results := fetchByFollowers(filtered, cfg.Accounts, followerFilters)
 
 	Print(results)
+}
+
+const concurrentFetches = 5
+
+type followerOutcome struct {
+	protocol defillama.Protocol
+	matched  bool
+}
+
+func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
+	type job struct {
+		index    int
+		protocol defillama.Protocol
+	}
+
+	jobs := make(chan job)
+	outcomes := make([]followerOutcome, len(filtered))
+
+	var wg sync.WaitGroup
+	for i := 0; i < concurrentFetches; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			client := twitter_api.New()
+
+			for j := range jobs {
+				p := j.protocol
+				acc := accounts[rand.IntN(len(accounts))]
+				client.SetAuthToken(acc.Token)
+
+				profile, err := client.GetProfile(p.Twitter)
+				if err != nil {
+					switch {
+					case strings.Contains(err.Error(), "rest_id not found"):
+						log.Printf("twitter handle %q: account not found / suspended", p.Twitter)
+					default:
+						log.Printf("twitter handle %q: fetch failed using account %q: %v", p.Twitter, acc.Label, err)
+					}
+					continue
+				}
+
+				if twitter.MatchesAllFollowers(profile.FollowersCount, followerFilters) {
+					fmt.Printf("%s: %d followers\n", p.Twitter, profile.FollowersCount)
+					outcomes[j.index] = followerOutcome{protocol: p, matched: true}
+				}
+			}
+		}()
+	}
+
+	go func() {
+		defer close(jobs)
+		for i, p := range filtered {
+			if p.Twitter == "" {
+				continue
+			}
+			jobs <- job{index: i, protocol: p}
+		}
+	}()
+
+	wg.Wait()
+
+	results := make([]defillama.Protocol, 0, len(filtered))
+	for _, o := range outcomes {
+		if o.matched {
+			results = append(results, o.protocol)
+		}
+	}
+	return results
 }
 
 func Print(protocols []defillama.Protocol) {
