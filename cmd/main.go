@@ -63,7 +63,7 @@ type followerOutcome struct {
 	matched  bool
 }
 
-const profileAttempts = 2
+const profileAttempts = 3
 
 func fetchProfileWithRetry(client *twitter_api.Client, proxies []defillama.ProxyConfig, username string) (twitter_api.Profile, error) {
 	var lastErr error
