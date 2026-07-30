@@ -33,6 +33,8 @@ github.com/touchmeangel/twitter_api v0.0.10 h1:kCgJF2osk1QN45CzX6/4b6tuXkWxjZwbo
 github.com/touchmeangel/twitter_api v0.0.10/go.mod h1:pMxdOsh6KU20Y2ZfX77yVjhfCXjCPygmPPmMBzPI0E0=
 github.com/touchmeangel/twitter_api v0.0.11 h1:a42N13S8O2kKQRRgQIBq/OPrx2l4H+DPHpX00FxisWc=
 github.com/touchmeangel/twitter_api v0.0.11/go.mod h1:pMxdOsh6KU20Y2ZfX77yVjhfCXjCPygmPPmMBzPI0E0=
+github.com/touchmeangel/twitter_api v0.0.12 h1:Iv1+RV0PUGblWFnHJrQKm3wxNaJ6PnpMagddSEIuQEA=
+github.com/touchmeangel/twitter_api v0.0.12/go.mod h1:pMxdOsh6KU20Y2ZfX77yVjhfCXjCPygmPPmMBzPI0E0=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.73.0 h1:ocTOORnBWtJ+P8t/6wAjdkchMzdfHmWx2VD/DPbgZ7s=

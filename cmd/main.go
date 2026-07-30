@@ -1,13 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"text/tabwriter"
+	"time"
 
 	"github.com/touchmeangel/protocols/config"
 	"github.com/touchmeangel/protocols/defillama"
@@ -60,6 +63,41 @@ type followerOutcome struct {
 	matched  bool
 }
 
+const profileAttempts = 2
+
+func fetchProfileWithRetry(client *twitter_api.Client, proxies []defillama.ProxyConfig, username string) (twitter_api.Profile, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < profileAttempts; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(attempt*attempt)*time.Second + time.Duration(rand.IntN(500))*time.Millisecond
+			time.Sleep(backoff)
+
+			proxy := proxies[rand.IntN(len(proxies))]
+			if err := client.SetProxy(proxy.Address); err != nil {
+				lastErr = err
+				continue
+			}
+			client.WithClientTimeout(proxy.Timeout)
+			client.ResetGuestSession()
+		}
+
+		profile, err := client.GetProfile(username)
+		if err == nil {
+			return profile, nil
+		}
+		lastErr = err
+
+		var apiErr *twitter_api.APIError
+		if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusTooManyRequests || apiErr.StatusCode == http.StatusForbidden) {
+			continue
+		}
+		return twitter_api.Profile{}, err
+	}
+
+	return twitter_api.Profile{}, fmt.Errorf("gave up after %d attempts: %w", profileAttempts, lastErr)
+}
+
 func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyConfig, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
 	type job struct {
 		index    int
@@ -87,7 +125,7 @@ func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyCo
 				}
 				client.WithClientTimeout(proxy.Timeout)
 
-				profile, err := client.GetProfile(p.Twitter)
+				profile, err := fetchProfileWithRetry(client, proxies, p.Twitter)
 				if err != nil {
 					switch {
 					case strings.Contains(err.Error(), "rest_id not found"):
