@@ -159,7 +159,6 @@ func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyCo
 				}
 
 				if twitter.MatchesAllFollowers(profile.FollowersCount, followerFilters) {
-					fmt.Printf("%s: %d followers\n", p.Twitter, profile.FollowersCount)
 					outcomes[j.index] = followerOutcome{
 						result:  ProtocolWithFollowers{Protocol: p, Followers: profile.FollowersCount},
 						matched: true,
