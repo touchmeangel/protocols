@@ -79,8 +79,12 @@ func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, 
 
 			for j := range jobs {
 				p := j.protocol
-				acc := accounts[rand.IntN(len(accounts))]
-				client.SetAuthToken(acc.Token)
+				accLabel := "guest"
+				if len(accounts) > 0 {
+					acc := accounts[rand.IntN(len(accounts))]
+					accLabel = acc.Label
+					client.SetAuthToken(acc.Token)
+				}
 				proxy := proxies[rand.IntN(len(proxies))]
 				err := client.SetProxy(proxy.Address)
 				if err != nil {
@@ -95,7 +99,7 @@ func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, 
 					case strings.Contains(err.Error(), "rest_id not found"):
 						log.Printf("twitter handle %q: account not found / suspended", p.Twitter)
 					default:
-						log.Printf("twitter handle %q: fetch failed using account %q: %v", p.Twitter, acc.Label, err)
+						log.Printf("twitter handle %q: fetch failed using account %q: %v", p.Twitter, accLabel, err)
 					}
 					continue
 				}
