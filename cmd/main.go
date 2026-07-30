@@ -66,24 +66,29 @@ type followerOutcome struct {
 	matched  bool
 }
 
-const profileAttempts = 3
+const profileAttempts = 5
 
 func fetchProfileWithRetry(client *twitter_api.Client, proxies []defillama.ProxyConfig, username string) (twitter_api.Profile, error) {
+	available := append([]defillama.ProxyConfig(nil), proxies...)
+
 	var lastErr error
+	badAttempts := 0 // only non-429 failures spend from this
 
-	for attempt := 0; attempt < profileAttempts; attempt++ {
-		if attempt > 0 {
-			backoff := time.Duration(attempt*attempt)*time.Second + time.Duration(rand.IntN(500))*time.Millisecond
-			time.Sleep(backoff)
-
-			proxy := proxies[rand.IntN(len(proxies))]
-			client.WithClientTimeout(proxy.Timeout)
-			if err := client.SetProxy(proxy.Address); err != nil {
-				lastErr = err
-				continue
-			}
-			client.ResetGuestSession()
+	for {
+		if len(available) == 0 {
+			return twitter_api.Profile{}, fmt.Errorf("no proxies left for %q: %w", username, lastErr)
 		}
+
+		idx := rand.IntN(len(available))
+		proxy := available[idx]
+
+		if err := client.SetProxy(proxy.Address); err != nil {
+			lastErr = err
+			available = append(available[:idx], available[idx+1:]...)
+			continue
+		}
+		client.WithClientTimeout(proxy.Timeout)
+		client.ResetGuestSession()
 
 		profile, err := client.GetProfile(username)
 		if err == nil {
@@ -92,13 +97,22 @@ func fetchProfileWithRetry(client *twitter_api.Client, proxies []defillama.Proxy
 		lastErr = err
 
 		var apiErr *twitter_api.APIError
-		if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusTooManyRequests || apiErr.StatusCode == http.StatusForbidden) {
+		if !errors.As(err, &apiErr) ||
+			(apiErr.StatusCode != http.StatusTooManyRequests && apiErr.StatusCode != http.StatusForbidden) {
+			return twitter_api.Profile{}, err // not retryable — e.g. account doesn't exist
+		}
+
+		if apiErr.StatusCode == http.StatusTooManyRequests {
+			available = append(available[:idx], available[idx+1:]...)
 			continue
 		}
-		return twitter_api.Profile{}, err
-	}
 
-	return twitter_api.Profile{}, fmt.Errorf("gave up after %d attempts: %w", profileAttempts, lastErr)
+		badAttempts++
+		if badAttempts >= profileAttempts {
+			return twitter_api.Profile{}, fmt.Errorf("gave up after %d attempts: %w", profileAttempts, lastErr)
+		}
+		time.Sleep(time.Duration(badAttempts*badAttempts)*time.Second + time.Duration(rand.IntN(500))*time.Millisecond)
+	}
 }
 
 func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyConfig, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
