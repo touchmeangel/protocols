@@ -58,15 +58,6 @@ shimmerbridge          ShimmerBridge          Bridge                     Binance
 nsure                  Nsure                  Insurance                  Ethereum                        $194,948  -0.28%     -1.05%     0.10      5,914
 ```
 
-### Contributing
-
-Contributions, bug reports, and feature requests are welcome.
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Commit your changes.
-4. Open a Pull Request.
-
 ### Collaborators
 
 * **[touchmeangel](https://github.com/touchmeangel)** — Creator
