@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/touchmeangel/protocols/defillama"
-	"github.com/touchmeangel/twitter_api"
 )
 
 const defaultProxyTimeout = 60 * time.Second
@@ -35,25 +34,12 @@ type proxyEntry struct {
 	Timeout jsonDuration `json:"timeout"`
 }
 
-type accountEntry struct {
-	Label     string `json:"label"`
-	CSRFToken string `json:"ct0"`
-	AuthToken string `json:"auth_token"`
-}
-
 type fileConfig struct {
-	Proxies  []proxyEntry   `json:"proxies"`
-	Accounts []accountEntry `json:"accounts"`
-}
-
-type Account struct {
-	Label string
-	Token twitter_api.AuthToken
+	Proxies []proxyEntry `json:"proxies"`
 }
 
 type Config struct {
-	Proxies  []defillama.ProxyConfig
-	Accounts []Account
+	Proxies []defillama.ProxyConfig
 }
 
 func Load(path string) (*Config, error) {
@@ -81,16 +67,6 @@ func Load(path string) (*Config, error) {
 	}
 	if len(cfg.Proxies) == 0 {
 		cfg.Proxies = []defillama.ProxyConfig{{Address: "", Timeout: defaultProxyTimeout}}
-	}
-
-	for _, a := range fc.Accounts {
-		if a.CSRFToken == "" || a.AuthToken == "" {
-			return nil, fmt.Errorf("config: account %q is missing ct0 or auth_token", a.Label)
-		}
-		cfg.Accounts = append(cfg.Accounts, Account{
-			Label: a.Label,
-			Token: twitter_api.AuthToken{CSRFToken: a.CSRFToken, Token: a.AuthToken},
-		})
 	}
 
 	return cfg, nil

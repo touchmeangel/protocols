@@ -48,7 +48,7 @@ func main() {
 		twitter.MaxFollowers(10000),
 	}
 
-	results := fetchByFollowers(filtered, cfg.Accounts, cfg.Proxies, followerFilters)
+	results := fetchByFollowers(filtered, cfg.Proxies, followerFilters)
 
 	Print(results)
 }
@@ -60,7 +60,7 @@ type followerOutcome struct {
 	matched  bool
 }
 
-func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, proxies []defillama.ProxyConfig, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
+func fetchByFollowers(filtered []defillama.Protocol, proxies []defillama.ProxyConfig, followerFilters []twitter.FollowerFilter) []defillama.Protocol {
 	type job struct {
 		index    int
 		protocol defillama.Protocol
@@ -79,12 +79,6 @@ func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, 
 
 			for j := range jobs {
 				p := j.protocol
-				accLabel := "guest"
-				if len(accounts) > 0 {
-					acc := accounts[rand.IntN(len(accounts))]
-					accLabel = acc.Label
-					client.SetAuthToken(acc.Token)
-				}
 				proxy := proxies[rand.IntN(len(proxies))]
 				err := client.SetProxy(proxy.Address)
 				if err != nil {
@@ -99,7 +93,7 @@ func fetchByFollowers(filtered []defillama.Protocol, accounts []config.Account, 
 					case strings.Contains(err.Error(), "rest_id not found"):
 						log.Printf("twitter handle %q: account not found / suspended", p.Twitter)
 					default:
-						log.Printf("twitter handle %q: fetch failed using account %q: %v", p.Twitter, accLabel, err)
+						log.Printf("twitter handle %q: fetch failed: %v", p.Twitter, err)
 					}
 					continue
 				}
