@@ -196,7 +196,7 @@ func Print(protocols []ProtocolWithFollowers) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()
 
-	_, _ = fmt.Fprintln(w, "ID\tNAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL\tFOLLOWERS")
+	_, _ = fmt.Fprintln(w, "ID\tNAME\tCATEGORY\tCHAINS\tTVL\t24H\t7D\tMCAP/TVL\tFOLLOWERS\tADDRESS")
 	for _, p := range protocols {
 		category := "-"
 		if p.Category != "" {
@@ -210,7 +210,7 @@ func Print(protocols []ProtocolWithFollowers) {
 
 		ratio, ok := defillama.MCapToTVL(p.Protocol)
 
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%s\t%s\t%s\t%s\t%s\t%s\n",
 			p.Slug,
 			p.Name,
 			category,
@@ -220,6 +220,7 @@ func Print(protocols []ProtocolWithFollowers) {
 			formatPct(p.Change7d),
 			formatRatio(ratio, ok),
 			formatMoney(float64(p.Followers)),
+			p.Address,
 		)
 	}
 	_, _ = fmt.Fprintf(w, "\nTotal: %d protocol(s)\n", len(protocols))
